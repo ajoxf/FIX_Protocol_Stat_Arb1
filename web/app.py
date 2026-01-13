@@ -249,6 +249,101 @@ def api_broker(broker_id):
         return jsonify({'error': 'Broker not found'}), 404
 
 
+@app.route('/api/brokers/<broker_id>/test', methods=['POST'])
+def api_broker_test(broker_id):
+    """Test broker connection"""
+    import time
+
+    database = get_db()
+    broker = database.get_broker(broker_id)
+
+    if not broker:
+        return jsonify({'success': False, 'error': 'Broker not found'})
+
+    if broker.broker_type == 'MT5':
+        try:
+            import MetaTrader5 as mt5
+
+            # Initialize MT5
+            start_time = time.time()
+
+            if broker.mt5_path:
+                init_result = mt5.initialize(broker.mt5_path)
+            else:
+                init_result = mt5.initialize()
+
+            if not init_result:
+                error = mt5.last_error()
+                return jsonify({
+                    'success': False,
+                    'error': f'MT5 initialization failed: {error}'
+                })
+
+            # Login to account
+            if broker.mt5_account and broker.mt5_password and broker.mt5_server:
+                login_result = mt5.login(
+                    int(broker.mt5_account),
+                    password=broker.mt5_password,
+                    server=broker.mt5_server
+                )
+
+                if not login_result:
+                    error = mt5.last_error()
+                    mt5.shutdown()
+                    return jsonify({
+                        'success': False,
+                        'error': f'Login failed: {error}'
+                    })
+
+            # Get account info
+            account_info = mt5.account_info()
+            latency_ms = int((time.time() - start_time) * 1000)
+
+            # Update broker status in database
+            broker.status = 'CONNECTED'
+            broker.latency_ms = latency_ms
+            database.add_broker(broker)
+
+            result = {
+                'success': True,
+                'latency_ms': latency_ms,
+                'account_info': {
+                    'login': account_info.login if account_info else None,
+                    'balance': account_info.balance if account_info else None,
+                    'equity': account_info.equity if account_info else None,
+                    'currency': account_info.currency if account_info else None,
+                    'server': account_info.server if account_info else None,
+                    'company': account_info.company if account_info else None
+                } if account_info else None
+            }
+
+            mt5.shutdown()
+            return jsonify(result)
+
+        except ImportError:
+            return jsonify({
+                'success': False,
+                'error': 'MetaTrader5 package not installed. Run: pip install MetaTrader5'
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            })
+
+    elif broker.broker_type == 'FIX':
+        return jsonify({
+            'success': False,
+            'error': 'FIX connection test not yet implemented'
+        })
+
+    else:
+        return jsonify({
+            'success': False,
+            'error': f'Unknown broker type: {broker.broker_type}'
+        })
+
+
 @app.route('/api/trades')
 def api_trades():
     """Get trade history"""
