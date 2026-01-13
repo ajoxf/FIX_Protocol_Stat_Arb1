@@ -241,7 +241,7 @@ class TradingEngine:
 
     async def start(self) -> None:
         """Start the trading engine"""
-        if self._state not in (EngineState.STOPPED, EngineState.PAUSED):
+        if self._state not in (EngineState.STOPPED, EngineState.PAUSED, EngineState.STARTING):
             logger.warning(f"Cannot start engine in state: {self._state}")
             return
 
