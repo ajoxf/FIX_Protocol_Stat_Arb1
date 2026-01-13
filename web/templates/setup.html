@@ -10,6 +10,74 @@
 </div>
 
 <div class="row g-4">
+    <!-- Leg Assignment -->
+    <div class="col-12">
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-diagram-3 me-2"></i>Leg Assignment
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Assign brokers to Spot and Futures legs. You can use the same broker for both or different brokers.</p>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card bg-dark">
+                            <div class="card-body">
+                                <h6 class="text-primary"><i class="bi bi-circle-fill me-2"></i>SPOT Leg</h6>
+                                <select class="form-select mb-2" id="spot-broker-select">
+                                    <option value="">-- Select Spot Broker --</option>
+                                    {% for broker in brokers %}
+                                    <option value="{{ broker.broker_id }}" {% if broker.role == 'SPOT' %}selected{% endif %}>
+                                        {{ broker.name }} ({{ broker.broker_type }}) - {{ broker.symbol }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div id="spot-broker-info" class="small">
+                                    {% for broker in brokers if broker.role == 'SPOT' %}
+                                    <span class="badge bg-success">{{ broker.name }}</span>
+                                    <span class="text-muted">{{ broker.symbol }}</span>
+                                    {% else %}
+                                    <span class="text-warning">No spot broker assigned</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-dark">
+                            <div class="card-body">
+                                <h6 class="text-warning"><i class="bi bi-square-fill me-2"></i>FUTURES Leg</h6>
+                                <select class="form-select mb-2" id="futures-broker-select">
+                                    <option value="">-- Select Futures Broker --</option>
+                                    {% for broker in brokers %}
+                                    <option value="{{ broker.broker_id }}" {% if broker.role == 'FUTURES' %}selected{% endif %}>
+                                        {{ broker.name }} ({{ broker.broker_type }}) - {{ broker.symbol }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div id="futures-broker-info" class="small">
+                                    {% for broker in brokers if broker.role == 'FUTURES' %}
+                                    <span class="badge bg-warning text-dark">{{ broker.name }}</span>
+                                    <span class="text-muted">{{ broker.symbol }}</span>
+                                    {% else %}
+                                    <span class="text-warning">No futures broker assigned</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-primary" onclick="saveLegAssignment()">
+                            <i class="bi bi-check-lg me-2"></i>Save Leg Assignment
+                        </button>
+                        <small class="text-muted ms-3">
+                            <i class="bi bi-info-circle me-1"></i>Tip: Add the same broker twice with different symbols for same-broker arbitrage
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Asset Configuration -->
     <div class="col-md-6">
         <div class="card">
@@ -557,6 +625,38 @@
             statusCell.textContent = 'ERROR';
             statusCell.className = 'badge badge-error';
             alert('Connection test failed: ' + error.message);
+        }
+    }
+
+    // Save leg assignment
+    async function saveLegAssignment() {
+        const spotBrokerId = document.getElementById('spot-broker-select').value;
+        const futuresBrokerId = document.getElementById('futures-broker-select').value;
+
+        if (!spotBrokerId || !futuresBrokerId) {
+            alert('Please select both Spot and Futures brokers');
+            return;
+        }
+
+        try {
+            // Update spot broker role
+            await fetch(`/api/brokers/${spotBrokerId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role: 'SPOT' })
+            });
+
+            // Update futures broker role
+            await fetch(`/api/brokers/${futuresBrokerId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role: 'FUTURES' })
+            });
+
+            alert('Leg assignment saved successfully!');
+            location.reload();
+        } catch (error) {
+            alert('Error saving leg assignment: ' + error.message);
         }
     }
 
