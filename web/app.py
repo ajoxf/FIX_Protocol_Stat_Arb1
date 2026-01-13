@@ -249,6 +249,128 @@ def api_broker(broker_id):
         return jsonify({'error': 'Broker not found'}), 404
 
 
+@app.route('/api/brokers/<broker_id>/test-order', methods=['POST'])
+def api_broker_test_order(broker_id):
+    """Place a test order on a broker"""
+    import time
+
+    database = get_db()
+    broker = database.get_broker(broker_id)
+
+    if not broker:
+        return jsonify({'success': False, 'error': 'Broker not found'})
+
+    data = request.get_json()
+    order_type = data.get('order_type', 'MARKET')  # MARKET or LIMIT
+    side = data.get('side', 'BUY')  # BUY or SELL
+    volume = float(data.get('volume', 0.01))
+    price = data.get('price')  # For LIMIT orders
+
+    if broker.broker_type == 'MT5':
+        try:
+            import MetaTrader5 as mt5
+
+            # Initialize and login
+            if broker.mt5_path:
+                if not mt5.initialize(broker.mt5_path):
+                    return jsonify({'success': False, 'error': f'MT5 init failed: {mt5.last_error()}'})
+            else:
+                if not mt5.initialize():
+                    return jsonify({'success': False, 'error': f'MT5 init failed: {mt5.last_error()}'})
+
+            if broker.mt5_account and broker.mt5_password and broker.mt5_server:
+                if not mt5.login(int(broker.mt5_account), password=broker.mt5_password, server=broker.mt5_server):
+                    mt5.shutdown()
+                    return jsonify({'success': False, 'error': f'Login failed: {mt5.last_error()}'})
+
+            # Get symbol info
+            symbol = broker.symbol
+            symbol_info = mt5.symbol_info(symbol)
+            if symbol_info is None:
+                mt5.shutdown()
+                return jsonify({'success': False, 'error': f'Symbol {symbol} not found'})
+
+            if not symbol_info.visible:
+                if not mt5.symbol_select(symbol, True):
+                    mt5.shutdown()
+                    return jsonify({'success': False, 'error': f'Failed to select symbol {symbol}'})
+
+            # Get current price
+            tick = mt5.symbol_info_tick(symbol)
+            if tick is None:
+                mt5.shutdown()
+                return jsonify({'success': False, 'error': 'Failed to get tick data'})
+
+            # Prepare order request
+            if order_type == 'MARKET':
+                order_type_mt5 = mt5.ORDER_TYPE_BUY if side == 'BUY' else mt5.ORDER_TYPE_SELL
+                order_price = tick.ask if side == 'BUY' else tick.bid
+                request_dict = {
+                    "action": mt5.TRADE_ACTION_DEAL,
+                    "symbol": symbol,
+                    "volume": volume,
+                    "type": order_type_mt5,
+                    "price": order_price,
+                    "deviation": 20,
+                    "magic": 123456,
+                    "comment": "StatArb Test Order",
+                    "type_time": mt5.ORDER_TIME_GTC,
+                    "type_filling": mt5.ORDER_FILLING_IOC,
+                }
+            else:  # LIMIT
+                order_type_mt5 = mt5.ORDER_TYPE_BUY_LIMIT if side == 'BUY' else mt5.ORDER_TYPE_SELL_LIMIT
+                if price is None:
+                    # Default: place limit order 50 points away from market
+                    point = symbol_info.point
+                    price = tick.ask - (50 * point) if side == 'BUY' else tick.bid + (50 * point)
+                request_dict = {
+                    "action": mt5.TRADE_ACTION_PENDING,
+                    "symbol": symbol,
+                    "volume": volume,
+                    "type": order_type_mt5,
+                    "price": float(price),
+                    "deviation": 20,
+                    "magic": 123456,
+                    "comment": "StatArb Test Limit",
+                    "type_time": mt5.ORDER_TIME_GTC,
+                    "type_filling": mt5.ORDER_FILLING_RETURN,
+                }
+
+            # Send order
+            start_time = time.time()
+            result = mt5.order_send(request_dict)
+            execution_time = int((time.time() - start_time) * 1000)
+
+            mt5.shutdown()
+
+            if result is None:
+                return jsonify({'success': False, 'error': 'Order send returned None'})
+
+            if result.retcode != mt5.TRADE_RETCODE_DONE:
+                return jsonify({
+                    'success': False,
+                    'error': f'Order failed: {result.comment}',
+                    'retcode': result.retcode
+                })
+
+            return jsonify({
+                'success': True,
+                'order_id': result.order,
+                'deal_id': result.deal,
+                'volume': result.volume,
+                'price': result.price,
+                'execution_time_ms': execution_time,
+                'comment': result.comment
+            })
+
+        except ImportError:
+            return jsonify({'success': False, 'error': 'MetaTrader5 package not installed'})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)})
+    else:
+        return jsonify({'success': False, 'error': f'Test orders not implemented for {broker.broker_type}'})
+
+
 @app.route('/api/brokers/<broker_id>/test', methods=['POST'])
 def api_broker_test(broker_id):
     """Test broker connection"""
@@ -388,6 +510,82 @@ def api_limit_stats():
     database = get_db()
     stats = database.get_limit_order_stats()
     return jsonify(stats)
+
+
+@app.route('/api/trades/export')
+def api_trades_export():
+    """Export trades as CSV"""
+    from flask import Response
+    import csv
+    import io
+
+    database = get_db()
+    trades = database.get_trades(limit=10000)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header
+    writer.writerow([
+        'Trade ID', 'Entry Time', 'Exit Time', 'Direction', 'Status',
+        'Spot Broker', 'Spot Entry Price', 'Spot Exit Price', 'Spot Volume',
+        'Futures Broker', 'Futures Entry Price', 'Futures Exit Price', 'Futures Volume',
+        'Entry Spread', 'Exit Spread', 'PnL', 'Zscore Entry', 'Zscore Exit',
+        'Duration (s)', 'Notes'
+    ])
+
+    for t in trades:
+        writer.writerow([
+            t.trade_id, t.entry_time, t.exit_time, t.direction, t.status,
+            t.spot_broker_id, t.spot_entry_price, t.spot_exit_price, t.spot_volume,
+            t.futures_broker_id, t.futures_entry_price, t.futures_exit_price, t.futures_volume,
+            t.entry_spread, t.exit_spread, t.pnl, t.zscore_entry, t.zscore_exit,
+            t.duration_seconds, t.notes
+        ])
+
+    output.seek(0)
+
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=trades_export.csv'}
+    )
+
+
+@app.route('/api/sd-touches/export')
+def api_sd_touches_export():
+    """Export SD touches as CSV"""
+    from flask import Response
+    import csv
+    import io
+
+    database = get_db()
+    touches = database.get_sd_touches(limit=10000)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header
+    writer.writerow([
+        'ID', 'Timestamp', 'SD Level', 'Touch Price', 'Spread',
+        'Zscore', 'Direction', 'Bounce %', 'Time to Bounce (s)',
+        'Order Placed', 'Order Filled', 'PnL'
+    ])
+
+    for touch in touches:
+        writer.writerow([
+            touch.id, touch.timestamp, touch.sd_level, touch.touch_price, touch.spread,
+            touch.zscore, touch.direction, touch.bounce_percent, touch.time_to_bounce_seconds,
+            touch.order_placed, touch.order_filled, touch.pnl
+        ])
+
+    output.seek(0)
+
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=sd_touches_export.csv'}
+    )
 
 
 @app.route('/api/engine/start', methods=['POST'])
