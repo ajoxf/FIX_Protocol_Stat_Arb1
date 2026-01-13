@@ -171,27 +171,42 @@ class ApplicationLauncher:
 
     def show_error(self, title: str, message: str):
         """Show error dialog"""
+        # Always print to console first
+        print(f"\n{'='*50}")
+        print(f"ERROR: {title}")
+        print(f"{'='*50}")
+        print(message)
+        print(f"{'='*50}\n")
+
+        # Try to show GUI dialog
         if HAS_TK:
-            root = tk.Tk()
-            root.withdraw()
-            messagebox.showerror(title, message)
-            root.destroy()
-        else:
-            print(f"ERROR: {title}\n{message}")
+            try:
+                root = tk.Tk()
+                root.withdraw()
+                messagebox.showerror(title, message)
+                root.destroy()
+            except Exception as e:
+                print(f"Could not show error dialog: {e}")
 
     def start_server(self):
         """Start the Flask server in background"""
         try:
+            import traceback
+            print("Importing web.app...")
             from web.app import init_app, socketio, app
 
+            print("Initializing app...")
             init_app()
             self.server_started = True
+            print("Starting server on http://127.0.0.1:5000")
             socketio.run(app, host='127.0.0.1', port=5000, debug=False, use_reloader=False)
 
         except Exception as e:
+            import traceback
             self.server_started = False
-            self.startup_error = str(e)
+            self.startup_error = f"{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
             print(f"Server error: {e}")
+            traceback.print_exc()
 
     def launch(self):
         """Launch the application"""
