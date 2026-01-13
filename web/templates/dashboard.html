@@ -80,6 +80,28 @@
 
     <!-- Right Sidebar -->
     <div class="col-md-4">
+        <!-- Engine Control -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-power me-2"></i>Engine Control
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <span class="badge fs-6" id="engine-state-badge">
+                        {{ engine_state }}
+                    </span>
+                </div>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-success" id="btn-start" onclick="startEngine()">
+                        <i class="bi bi-play-fill me-1"></i>Start
+                    </button>
+                    <button type="button" class="btn btn-danger" id="btn-stop" onclick="stopEngine()" disabled>
+                        <i class="bi bi-stop-fill me-1"></i>Stop
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Algorithm Control -->
         <div class="card mb-4">
             <div class="card-header">
@@ -406,11 +428,101 @@
         document.getElementById('algo-status').textContent = enabled ? 'ENABLED' : 'DISABLED';
     });
 
+    // Engine control functions
+    async function startEngine() {
+        document.getElementById('btn-start').disabled = true;
+        document.getElementById('btn-start').innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Starting...';
+
+        try {
+            const response = await fetch('/api/engine/start', { method: 'POST' });
+            const result = await response.json();
+
+            if (result.success) {
+                updateEngineState('STARTING');
+                setTimeout(() => {
+                    fetch('/api/status').then(r => r.json()).then(data => {
+                        updateEngineState(data.state);
+                    });
+                }, 2000);
+            } else {
+                alert('Failed to start engine: ' + result.error);
+                document.getElementById('btn-start').disabled = false;
+                document.getElementById('btn-start').innerHTML = '<i class="bi bi-play-fill me-1"></i>Start';
+            }
+        } catch (e) {
+            alert('Error: ' + e.message);
+            document.getElementById('btn-start').disabled = false;
+            document.getElementById('btn-start').innerHTML = '<i class="bi bi-play-fill me-1"></i>Start';
+        }
+    }
+
+    async function stopEngine() {
+        document.getElementById('btn-stop').disabled = true;
+        document.getElementById('btn-stop').innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Stopping...';
+
+        try {
+            const response = await fetch('/api/engine/stop', { method: 'POST' });
+            const result = await response.json();
+
+            if (result.success) {
+                updateEngineState('STOPPING');
+                setTimeout(() => {
+                    updateEngineState('STOPPED');
+                }, 2000);
+            } else {
+                alert('Failed to stop engine: ' + result.error);
+            }
+        } catch (e) {
+            alert('Error: ' + e.message);
+        }
+
+        document.getElementById('btn-stop').disabled = false;
+        document.getElementById('btn-stop').innerHTML = '<i class="bi bi-stop-fill me-1"></i>Stop';
+    }
+
+    function updateEngineState(state) {
+        const badge = document.getElementById('engine-state-badge');
+        const startBtn = document.getElementById('btn-start');
+        const stopBtn = document.getElementById('btn-stop');
+
+        badge.textContent = state;
+        badge.className = 'badge fs-6';
+
+        switch(state) {
+            case 'RUNNING':
+                badge.classList.add('bg-success');
+                startBtn.disabled = true;
+                startBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Start';
+                stopBtn.disabled = false;
+                break;
+            case 'STOPPED':
+                badge.classList.add('bg-secondary');
+                startBtn.disabled = false;
+                startBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Start';
+                stopBtn.disabled = true;
+                break;
+            case 'STARTING':
+            case 'STOPPING':
+                badge.classList.add('bg-warning');
+                startBtn.disabled = true;
+                stopBtn.disabled = true;
+                break;
+            case 'ERROR':
+                badge.classList.add('bg-danger');
+                startBtn.disabled = false;
+                startBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Start';
+                stopBtn.disabled = true;
+                break;
+            default:
+                badge.classList.add('bg-secondary');
+        }
+    }
+
     // Initial status fetch
     fetch('/api/status')
         .then(r => r.json())
         .then(data => {
-            updateStatus(data.state);
+            updateEngineState(data.state);
             if (data.market) {
                 updateTickData(data.market);
             }

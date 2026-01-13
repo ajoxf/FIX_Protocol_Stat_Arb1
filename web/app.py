@@ -593,8 +593,12 @@ def api_engine_start():
     """Start trading engine"""
     global engine, engine_loop
 
-    if engine and engine.state == EngineState.RUNNING:
-        return jsonify({'success': False, 'error': 'Engine already running'})
+    # Check if engine is already running or starting
+    if engine:
+        if engine.state == EngineState.RUNNING:
+            return jsonify({'success': False, 'error': 'Engine already running'})
+        if engine.state == EngineState.STARTING:
+            return jsonify({'success': False, 'error': 'Engine is starting'})
 
     try:
         # Create event loop in background thread
@@ -622,9 +626,19 @@ def api_engine_start():
                 'trade': t.to_dict()
             }))
 
-            engine_loop.run_until_complete(engine.initialize())
-            engine_loop.run_until_complete(engine.start())
-            engine_loop.run_forever()
+            async def run_async():
+                await engine.initialize()
+                await engine.start()
+                # Keep running until stopped
+                while engine.state == EngineState.RUNNING:
+                    await asyncio.sleep(0.1)
+
+            try:
+                engine_loop.run_until_complete(run_async())
+            except Exception as e:
+                logger.error(f"Engine error: {e}")
+            finally:
+                engine_loop.close()
 
         thread = threading.Thread(target=run_engine, daemon=True)
         thread.start()
