@@ -395,6 +395,26 @@ def api_clear_data():
     return jsonify({'success': True})
 
 
+@app.route('/api/shutdown', methods=['POST'])
+def api_shutdown():
+    """Shutdown the application gracefully"""
+    import os
+    import signal
+
+    def shutdown():
+        # Give time for response to be sent
+        import time
+        time.sleep(0.5)
+        # Use os._exit to force shutdown (works with PyInstaller)
+        os._exit(0)
+
+    # Run shutdown in background thread
+    shutdown_thread = threading.Thread(target=shutdown)
+    shutdown_thread.start()
+
+    return jsonify({'success': True, 'message': 'Shutting down...'})
+
+
 # ==================== SocketIO Events ====================
 
 @socketio.on('connect')
