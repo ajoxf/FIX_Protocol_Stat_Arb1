@@ -289,6 +289,17 @@ class ApplicationLauncher:
 
 def main():
     """Main entry point"""
+    import signal
+
+    # Handle Ctrl+C gracefully
+    def signal_handler(sig, frame):
+        print("\nShutting down...")
+        import os
+        os._exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     launcher = ApplicationLauncher()
     launcher.launch()
 

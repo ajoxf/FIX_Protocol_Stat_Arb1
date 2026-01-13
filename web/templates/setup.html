@@ -121,16 +121,28 @@
                             <small class="text-muted" id="mt5-detect-status"></small>
                         </div>
                         <div class="col-md-4 mt5-fields">
-                            <label class="form-label">Account</label>
-                            <input type="number" class="form-control" name="mt5_account">
+                            <label class="form-label">Server</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="mt5_server" id="mt5-server"
+                                       list="mt5-server-list" placeholder="Select or type server">
+                                <datalist id="mt5-server-list"></datalist>
+                                <button class="btn btn-outline-info btn-sm" type="button" id="load-accounts-btn" title="Load saved accounts">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="col-md-4 mt5-fields">
-                            <label class="form-label">Server</label>
-                            <input type="text" class="form-control" name="mt5_server">
+                            <label class="form-label">Account</label>
+                            <input type="text" class="form-control" name="mt5_account" id="mt5-account"
+                                   list="mt5-account-list" placeholder="Select or type account">
+                            <datalist id="mt5-account-list"></datalist>
                         </div>
                         <div class="col-md-4 mt5-fields">
                             <label class="form-label">Password</label>
                             <input type="password" class="form-control" name="mt5_password">
+                        </div>
+                        <div class="col-12 mt5-fields">
+                            <small class="text-muted" id="mt5-accounts-status"></small>
                         </div>
 
                         <!-- FIX Fields -->
@@ -308,10 +320,98 @@
         btn.innerHTML = '<i class="bi bi-search"></i> Detect';
     });
 
-    // When user selects from dropdown, populate the path field
+    // When user selects from dropdown, populate the path field and load accounts
     document.getElementById('mt5-detected-list').addEventListener('change', (e) => {
         if (e.target.value) {
             document.getElementById('mt5-path').value = e.target.value;
+            loadMT5Accounts(e.target.value);
+        }
+    });
+
+    // Load MT5 accounts function
+    async function loadMT5Accounts(mt5Path) {
+        const statusEl = document.getElementById('mt5-accounts-status');
+        const serverList = document.getElementById('mt5-server-list');
+        const accountList = document.getElementById('mt5-account-list');
+        const serverInput = document.getElementById('mt5-server');
+        const accountInput = document.getElementById('mt5-account');
+
+        if (!mt5Path) {
+            mt5Path = document.getElementById('mt5-path').value;
+        }
+
+        if (!mt5Path) {
+            statusEl.textContent = 'Enter MT5 path first';
+            return;
+        }
+
+        statusEl.textContent = 'Loading saved accounts...';
+
+        try {
+            const response = await fetch('/api/detect-mt5-accounts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mt5_path: mt5Path })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                // Populate server datalist
+                serverList.innerHTML = '';
+                result.servers.forEach(server => {
+                    const option = document.createElement('option');
+                    option.value = server;
+                    serverList.appendChild(option);
+                });
+
+                // Populate account datalist
+                accountList.innerHTML = '';
+                result.accounts.forEach(acc => {
+                    const option = document.createElement('option');
+                    option.value = acc.account;
+                    option.textContent = `${acc.account} (${acc.server})`;
+                    accountList.appendChild(option);
+                });
+
+                // Auto-fill with most recent account if available
+                if (result.accounts.length > 0) {
+                    const recent = result.accounts[0];
+                    if (!serverInput.value) serverInput.value = recent.server;
+                    if (!accountInput.value) accountInput.value = recent.account;
+                }
+
+                const serverCount = result.servers.length;
+                const accountCount = result.accounts.length;
+                statusEl.textContent = `Found ${serverCount} server(s), ${accountCount} saved account(s)`;
+                statusEl.className = 'text-success';
+            } else {
+                statusEl.textContent = result.error || 'Could not load accounts';
+                statusEl.className = 'text-warning';
+            }
+        } catch (error) {
+            statusEl.textContent = 'Error: ' + error.message;
+            statusEl.className = 'text-danger';
+        }
+    }
+
+    // Load accounts button
+    document.getElementById('load-accounts-btn').addEventListener('click', () => {
+        loadMT5Accounts();
+    });
+
+    // When account is selected from datalist, auto-fill server
+    document.getElementById('mt5-account').addEventListener('change', (e) => {
+        const accountList = document.getElementById('mt5-account-list');
+        const serverInput = document.getElementById('mt5-server');
+        // Find the matching account's server
+        for (const option of accountList.options) {
+            if (option.value === e.target.value && option.textContent.includes('(')) {
+                const match = option.textContent.match(/\(([^)]+)\)/);
+                if (match && match[1]) {
+                    serverInput.value = match[1];
+                }
+                break;
+            }
         }
     });
 
