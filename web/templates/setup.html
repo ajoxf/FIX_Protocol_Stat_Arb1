@@ -214,6 +214,9 @@
                                 </td>
                                 <td>{{ broker.latency_ms or '-' }} ms</td>
                                 <td>
+                                    <button class="btn btn-sm btn-outline-info me-1" onclick="testBroker('{{ broker.broker_id }}')" title="Test Connection">
+                                        <i class="bi bi-plug"></i>
+                                    </button>
                                     <button class="btn btn-sm btn-outline-danger" onclick="deleteBroker('{{ broker.broker_id }}')">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -473,6 +476,41 @@
             location.reload();
         } else {
             alert('Error: ' + result.error);
+        }
+    }
+
+    // Test broker connection
+    async function testBroker(brokerId) {
+        const row = document.querySelector(`tr[data-broker-id="${brokerId}"]`);
+        const statusCell = row.querySelector('td:nth-child(6) .badge');
+        const originalText = statusCell.textContent;
+
+        statusCell.textContent = 'TESTING...';
+        statusCell.className = 'badge bg-warning';
+
+        try {
+            const response = await fetch(`/api/brokers/${brokerId}/test`, {
+                method: 'POST'
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                statusCell.textContent = 'CONNECTED';
+                statusCell.className = 'badge badge-connected';
+                if (result.latency_ms) {
+                    const latencyCell = row.querySelector('td:nth-child(7)');
+                    latencyCell.textContent = `${result.latency_ms} ms`;
+                }
+                alert(`Connection successful!\nAccount: ${result.account_info?.login || 'N/A'}\nBalance: ${result.account_info?.balance || 'N/A'}\nLatency: ${result.latency_ms || 'N/A'} ms`);
+            } else {
+                statusCell.textContent = 'ERROR';
+                statusCell.className = 'badge badge-error';
+                alert('Connection failed: ' + result.error);
+            }
+        } catch (error) {
+            statusCell.textContent = 'ERROR';
+            statusCell.className = 'badge badge-error';
+            alert('Connection test failed: ' + error.message);
         }
     }
 
