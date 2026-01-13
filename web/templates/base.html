@@ -197,8 +197,11 @@
                 <div class="d-flex align-items-center">
                     <span id="status-indicator" class="status-stopped"></span>
                     <span id="status-text" class="me-3">Stopped</span>
-                    <button id="engine-toggle" class="btn btn-outline-success btn-sm">
+                    <button id="engine-toggle" class="btn btn-outline-success btn-sm me-2">
                         <i class="bi bi-play-fill"></i> Start
+                    </button>
+                    <button id="shutdown-btn" class="btn btn-outline-secondary btn-sm" title="Shutdown Application">
+                        <i class="bi bi-power"></i>
                     </button>
                 </div>
             </div>
@@ -276,6 +279,19 @@
 
             if (!result.success) {
                 alert('Error: ' + result.error);
+            }
+        });
+
+        // Shutdown button
+        document.getElementById('shutdown-btn').addEventListener('click', async () => {
+            if (confirm('Are you sure you want to shutdown StatArb Pro?')) {
+                try {
+                    await fetch('/api/shutdown', { method: 'POST' });
+                    document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;flex-direction:column;"><h2>StatArb Pro has been shut down</h2><p>You can close this browser tab.</p></div>';
+                } catch (e) {
+                    // Server shutdown, connection lost - this is expected
+                    document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;flex-direction:column;"><h2>StatArb Pro has been shut down</h2><p>You can close this browser tab.</p></div>';
+                }
             }
         });
 

@@ -108,8 +108,17 @@
                         </div>
                         <div class="col-md-12 mt5-fields">
                             <label class="form-label">MT5 Path</label>
-                            <input type="text" class="form-control" name="mt5_path"
-                                   placeholder="C:\Program Files\MetaTrader 5\terminal64.exe">
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="mt5_path" id="mt5-path"
+                                       placeholder="C:\Program Files\MetaTrader 5\terminal64.exe">
+                                <button class="btn btn-outline-info" type="button" id="detect-mt5-btn">
+                                    <i class="bi bi-search"></i> Detect
+                                </button>
+                            </div>
+                            <select class="form-select mt-2 d-none" id="mt5-detected-list">
+                                <option value="">-- Select detected MT5 installation --</option>
+                            </select>
+                            <small class="text-muted" id="mt5-detect-status"></small>
                         </div>
                         <div class="col-md-4 mt5-fields">
                             <label class="form-label">Account</label>
@@ -254,6 +263,55 @@
             document.querySelectorAll('.mt5-fields').forEach(el => el.classList.remove('d-none'));
         } else if (type === 'FIX') {
             document.querySelectorAll('.fix-fields').forEach(el => el.classList.remove('d-none'));
+        }
+    });
+
+    // MT5 Auto-detect
+    document.getElementById('detect-mt5-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('detect-mt5-btn');
+        const statusEl = document.getElementById('mt5-detect-status');
+        const selectEl = document.getElementById('mt5-detected-list');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Detecting...';
+        statusEl.textContent = 'Scanning for MT5 installations...';
+
+        try {
+            const response = await fetch('/api/detect-mt5');
+            const result = await response.json();
+
+            if (result.success && result.count > 0) {
+                // Populate dropdown
+                selectEl.innerHTML = '<option value="">-- Select detected MT5 installation --</option>';
+                result.installations.forEach(inst => {
+                    const option = document.createElement('option');
+                    option.value = inst.path;
+                    option.textContent = `${inst.name} - ${inst.path}`;
+                    selectEl.appendChild(option);
+                });
+                selectEl.classList.remove('d-none');
+                statusEl.textContent = `Found ${result.count} MT5 installation(s)`;
+                statusEl.classList.remove('text-muted');
+                statusEl.classList.add('text-success');
+            } else {
+                selectEl.classList.add('d-none');
+                statusEl.textContent = 'No MT5 installations found. Enter path manually.';
+                statusEl.classList.remove('text-success');
+                statusEl.classList.add('text-warning');
+            }
+        } catch (error) {
+            statusEl.textContent = 'Error detecting MT5: ' + error.message;
+            statusEl.classList.add('text-danger');
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-search"></i> Detect';
+    });
+
+    // When user selects from dropdown, populate the path field
+    document.getElementById('mt5-detected-list').addEventListener('change', (e) => {
+        if (e.target.value) {
+            document.getElementById('mt5-path').value = e.target.value;
         }
     });
 

@@ -395,6 +395,128 @@ def api_clear_data():
     return jsonify({'success': True})
 
 
+@app.route('/api/detect-mt5', methods=['GET'])
+def api_detect_mt5():
+    """Auto-detect MT5 installations on the system"""
+    import os
+    import glob
+
+    found_installations = []
+
+    # Common installation paths to check
+    common_paths = [
+        # Standard Program Files locations
+        r"C:\Program Files\MetaTrader 5\terminal64.exe",
+        r"C:\Program Files (x86)\MetaTrader 5\terminal64.exe",
+        # Broker-specific installations (common patterns)
+        r"C:\Program Files\*MT5*\terminal64.exe",
+        r"C:\Program Files\*MetaTrader*\terminal64.exe",
+        r"C:\Program Files (x86)\*MT5*\terminal64.exe",
+        r"C:\Program Files (x86)\*MetaTrader*\terminal64.exe",
+        # User profile locations
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\*MT5*\terminal64.exe"),
+        os.path.expandvars(r"%APPDATA%\*MetaTrader*\terminal64.exe"),
+        # Portable installations on common drives
+        r"D:\*MT5*\terminal64.exe",
+        r"D:\*MetaTrader*\terminal64.exe",
+    ]
+
+    checked_paths = set()
+
+    for pattern in common_paths:
+        try:
+            # Use glob for wildcard patterns
+            if '*' in pattern:
+                matches = glob.glob(pattern)
+                for match in matches:
+                    if match not in checked_paths and os.path.isfile(match):
+                        checked_paths.add(match)
+                        # Extract broker name from path
+                        folder_name = os.path.basename(os.path.dirname(match))
+                        found_installations.append({
+                            'path': match,
+                            'name': folder_name
+                        })
+            else:
+                # Direct path check
+                if pattern not in checked_paths and os.path.isfile(pattern):
+                    checked_paths.add(pattern)
+                    folder_name = os.path.basename(os.path.dirname(pattern))
+                    found_installations.append({
+                        'path': pattern,
+                        'name': folder_name
+                    })
+        except Exception:
+            pass
+
+    # Also check Windows Registry for MT5 installations
+    try:
+        import winreg
+
+        # Check uninstall registry keys
+        reg_paths = [
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"),
+            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
+        ]
+
+        for hkey, reg_path in reg_paths:
+            try:
+                with winreg.OpenKey(hkey, reg_path) as key:
+                    i = 0
+                    while True:
+                        try:
+                            subkey_name = winreg.EnumKey(key, i)
+                            if 'metatrader' in subkey_name.lower() or 'mt5' in subkey_name.lower():
+                                with winreg.OpenKey(key, subkey_name) as subkey:
+                                    try:
+                                        install_path = winreg.QueryValueEx(subkey, "InstallLocation")[0]
+                                        terminal_path = os.path.join(install_path, "terminal64.exe")
+                                        if terminal_path not in checked_paths and os.path.isfile(terminal_path):
+                                            checked_paths.add(terminal_path)
+                                            display_name = winreg.QueryValueEx(subkey, "DisplayName")[0]
+                                            found_installations.append({
+                                                'path': terminal_path,
+                                                'name': display_name
+                                            })
+                                    except (FileNotFoundError, OSError):
+                                        pass
+                            i += 1
+                        except OSError:
+                            break
+            except (FileNotFoundError, OSError):
+                pass
+    except ImportError:
+        # winreg not available (non-Windows)
+        pass
+
+    return jsonify({
+        'success': True,
+        'installations': found_installations,
+        'count': len(found_installations)
+    })
+
+
+@app.route('/api/shutdown', methods=['POST'])
+def api_shutdown():
+    """Shutdown the application gracefully"""
+    import os
+    import signal
+
+    def shutdown():
+        # Give time for response to be sent
+        import time
+        time.sleep(0.5)
+        # Use os._exit to force shutdown (works with PyInstaller)
+        os._exit(0)
+
+    # Run shutdown in background thread
+    shutdown_thread = threading.Thread(target=shutdown)
+    shutdown_thread.start()
+
+    return jsonify({'success': True, 'message': 'Shutting down...'})
+
+
 # ==================== SocketIO Events ====================
 
 @socketio.on('connect')
