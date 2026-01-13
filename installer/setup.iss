@@ -51,8 +51,6 @@ PrivilegesRequiredOverridesAllowed=dialog
 ; Visual Style
 WizardStyle=modern
 WizardSizePercent=120
-WizardImageFile=assets\wizard_large.bmp
-WizardSmallImageFile=assets\wizard_small.bmp
 
 ; Minimum Windows version
 MinVersion=10.0
@@ -72,13 +70,9 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 ; Main application files (from PyInstaller output)
 Source: "dist\StatArbPro\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; Additional documentation
-Source: "assets\Quick_Start_Guide.pdf"; DestDir: "{app}\docs"; Flags: ignoreversion
-
 [Icons]
 ; Start Menu
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Quick Start Guide"; Filename: "{app}\docs\Quick_Start_Guide.pdf"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 
 ; Desktop (optional)
