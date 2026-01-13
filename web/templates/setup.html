@@ -214,9 +214,20 @@
                                 </td>
                                 <td>{{ broker.latency_ms or '-' }} ms</td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-info me-1" onclick="testBroker('{{ broker.broker_id }}')" title="Test Connection">
-                                        <i class="bi bi-plug"></i>
-                                    </button>
+                                    <div class="btn-group btn-group-sm me-1">
+                                        <button class="btn btn-outline-info" onclick="testBroker('{{ broker.broker_id }}')" title="Test Connection">
+                                            <i class="bi bi-plug"></i>
+                                        </button>
+                                        <button class="btn btn-outline-success" onclick="testOrder('{{ broker.broker_id }}', 'MARKET', 'BUY')" title="Test Market Buy">
+                                            <i class="bi bi-arrow-up"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="testOrder('{{ broker.broker_id }}', 'MARKET', 'SELL')" title="Test Market Sell">
+                                            <i class="bi bi-arrow-down"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary" onclick="showLimitOrderModal('{{ broker.broker_id }}')" title="Test Limit Order">
+                                            <i class="bi bi-clock"></i>
+                                        </button>
+                                    </div>
                                     <button class="btn btn-sm btn-outline-danger" onclick="deleteBroker('{{ broker.broker_id }}')">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -256,6 +267,41 @@
                         <i class="bi bi-trash me-1"></i>Clear All
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Limit Order Modal -->
+<div class="modal fade" id="limitOrderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Test Limit Order</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="limit-broker-id">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="form-label">Side</label>
+                        <select class="form-select" id="limit-side">
+                            <option value="BUY">Buy</option>
+                            <option value="SELL">Sell</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Volume</label>
+                        <input type="number" class="form-control" id="limit-volume" value="0.01" step="0.01" min="0.01">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Price (leave empty for auto)</label>
+                        <input type="number" class="form-control" id="limit-price" step="0.01" placeholder="Auto: 50 points from market">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitLimitOrder()">Place Limit Order</button>
             </div>
         </div>
     </div>
@@ -526,6 +572,80 @@
 
         const result = await response.json();
         alert(result.success ? 'Data cleared!' : 'Error: ' + result.error);
+    }
+
+    // Test order (Market)
+    async function testOrder(brokerId, orderType, side) {
+        const volume = 0.01;  // Minimum lot size
+
+        if (!confirm(`Place ${orderType} ${side} order (${volume} lots) on broker ${brokerId}?\n\nThis will place a REAL order!`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/brokers/${brokerId}/test-order`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    order_type: orderType,
+                    side: side,
+                    volume: volume
+                })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                alert(`Order placed successfully!\n\nOrder ID: ${result.order_id}\nDeal ID: ${result.deal_id}\nPrice: ${result.price}\nVolume: ${result.volume}\nExecution: ${result.execution_time_ms}ms`);
+            } else {
+                alert('Order failed: ' + result.error);
+            }
+        } catch (error) {
+            alert('Error placing order: ' + error.message);
+        }
+    }
+
+    // Show limit order modal
+    function showLimitOrderModal(brokerId) {
+        document.getElementById('limit-broker-id').value = brokerId;
+        document.getElementById('limit-price').value = '';
+        new bootstrap.Modal(document.getElementById('limitOrderModal')).show();
+    }
+
+    // Submit limit order
+    async function submitLimitOrder() {
+        const brokerId = document.getElementById('limit-broker-id').value;
+        const side = document.getElementById('limit-side').value;
+        const volume = parseFloat(document.getElementById('limit-volume').value);
+        const priceInput = document.getElementById('limit-price').value;
+        const price = priceInput ? parseFloat(priceInput) : null;
+
+        if (!confirm(`Place LIMIT ${side} order (${volume} lots) on broker ${brokerId}?\n\nThis will place a REAL pending order!`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/brokers/${brokerId}/test-order`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    order_type: 'LIMIT',
+                    side: side,
+                    volume: volume,
+                    price: price
+                })
+            });
+            const result = await response.json();
+
+            bootstrap.Modal.getInstance(document.getElementById('limitOrderModal')).hide();
+
+            if (result.success) {
+                alert(`Limit order placed successfully!\n\nOrder ID: ${result.order_id}\nPrice: ${result.price}\nVolume: ${result.volume}\nExecution: ${result.execution_time_ms}ms`);
+            } else {
+                alert('Limit order failed: ' + result.error);
+            }
+        } catch (error) {
+            alert('Error placing limit order: ' + error.message);
+        }
     }
 </script>
 {% endblock %}

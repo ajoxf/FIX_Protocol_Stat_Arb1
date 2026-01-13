@@ -164,8 +164,8 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-list-check me-2"></i>SD Touch Log</span>
-                <div>
-                    <select class="form-select form-select-sm" id="sd-filter" style="width: auto; display: inline-block;">
+                <div class="d-flex gap-2">
+                    <select class="form-select form-select-sm" id="sd-filter" style="width: auto;">
                         <option value="">All Levels</option>
                         <option value="2.0σ">2.0σ</option>
                         <option value="2.5σ">2.5σ</option>
@@ -173,6 +173,9 @@
                         <option value="3.5σ">3.5σ</option>
                         <option value="4.0σ">4.0σ</option>
                     </select>
+                    <a href="/api/sd-touches/export" class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-download me-1"></i>CSV
+                    </a>
                 </div>
             </div>
             <div class="card-body">

@@ -226,15 +226,26 @@ class ApplicationLauncher:
             if self.startup_complete and not self.startup_error:
                 webbrowser.open('http://127.0.0.1:5000')
 
-                # Keep main thread alive while server runs
-                if self.server_thread and self.server_thread.is_alive():
-                    self.server_thread.join()
+                # Keep main thread alive while server runs using polling
+                # This allows Ctrl+C to work
+                self._wait_for_server()
             elif self.startup_error:
                 self.show_error("Startup Error", f"Failed to start application:\n\n{self.startup_error}")
                 sys.exit(1)
         else:
             # No GUI, just start server
             self._startup_sequence_no_splash()
+
+    def _wait_for_server(self):
+        """Wait for server to stop, with Ctrl+C support"""
+        print("\nStatArb Pro is running at http://127.0.0.1:5000")
+        print("Press Ctrl+C to stop the server\n")
+        try:
+            while self.server_thread and self.server_thread.is_alive():
+                self.server_thread.join(timeout=0.5)
+        except KeyboardInterrupt:
+            print("\nShutting down...")
+            os._exit(0)
 
     def _startup_sequence_no_splash(self):
         """Run startup without splash screen"""
@@ -243,8 +254,7 @@ class ApplicationLauncher:
         self.server_thread.start()
         time.sleep(2)
         webbrowser.open('http://127.0.0.1:5000')
-        if self.server_thread:
-            self.server_thread.join()
+        self._wait_for_server()
 
     def _startup_sequence(self):
         """Run the startup sequence (called from background thread)"""
