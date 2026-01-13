@@ -166,6 +166,8 @@ class ApplicationLauncher:
         self.splash = None
         self.server_thread = None
         self.server_started = False
+        self.startup_complete = False
+        self.startup_error = None
 
     def show_error(self, title: str, message: str):
         """Show error dialog"""
@@ -188,6 +190,7 @@ class ApplicationLauncher:
 
         except Exception as e:
             self.server_started = False
+            self.startup_error = str(e)
             print(f"Server error: {e}")
 
     def launch(self):
@@ -201,14 +204,35 @@ class ApplicationLauncher:
             startup_thread = threading.Thread(target=self._startup_sequence)
             startup_thread.start()
 
-            # Run splash screen main loop
+            # Run splash screen main loop (blocks until splash closes)
             self.splash.mainloop()
+
+            # After splash closes, open browser and keep running
+            if self.startup_complete and not self.startup_error:
+                webbrowser.open('http://127.0.0.1:5000')
+
+                # Keep main thread alive while server runs
+                if self.server_thread and self.server_thread.is_alive():
+                    self.server_thread.join()
+            elif self.startup_error:
+                self.show_error("Startup Error", f"Failed to start application:\n\n{self.startup_error}")
+                sys.exit(1)
         else:
             # No GUI, just start server
-            self._startup_sequence()
+            self._startup_sequence_no_splash()
+
+    def _startup_sequence_no_splash(self):
+        """Run startup without splash screen"""
+        print("Starting StatArb Pro...")
+        self.server_thread = threading.Thread(target=self.start_server, daemon=True)
+        self.server_thread.start()
+        time.sleep(2)
+        webbrowser.open('http://127.0.0.1:5000')
+        if self.server_thread:
+            self.server_thread.join()
 
     def _startup_sequence(self):
-        """Run the startup sequence"""
+        """Run the startup sequence (called from background thread)"""
         try:
             steps = [
                 ("Loading configuration...", 10),
@@ -234,20 +258,18 @@ class ApplicationLauncher:
             if self.splash:
                 self.splash.update_status("Launching browser...", 100)
                 time.sleep(0.5)
-                self.splash.close()
 
-            # Open browser
-            webbrowser.open('http://127.0.0.1:5000')
+            # Mark startup complete before closing splash
+            self.startup_complete = True
 
-            # Keep main thread alive
-            if self.server_thread:
-                self.server_thread.join()
-
-        except Exception as e:
+            # Close splash - this will cause mainloop() to return in main thread
             if self.splash:
                 self.splash.close()
-            self.show_error("Startup Error", f"Failed to start application:\n\n{str(e)}")
-            sys.exit(1)
+
+        except Exception as e:
+            self.startup_error = str(e)
+            if self.splash:
+                self.splash.close()
 
 
 def main():
