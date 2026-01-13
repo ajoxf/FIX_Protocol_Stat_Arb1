@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}SD Analysis - Multi-Broker Arbitrage{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h4 class="mb-4"><i class="bi bi-bar-chart me-2"></i>Standard Deviation Analysis</h4>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- SD Touch Statistics -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-bullseye me-2"></i>SD Touch Success Rates
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for level in ['2.0σ', '2.5σ', '3.0σ', '3.5σ', '4.0σ'] %}
+                    <div class="col">
+                        <div class="card stat-card {% if sd_stats.get(level, {}).get('success_rate', 0) >= 70 %}border-success{% elif sd_stats.get(level, {}).get('success_rate', 0) >= 50 %}border-warning{% else %}border-danger{% endif %}">
+                            <div class="stat-value">
+                                {{ "%.1f"|format(sd_stats.get(level, {}).get('success_rate', 0)) }}%
+                            </div>
+                            <div class="stat-label">{{ level }}</div>
+                            <small class="text-muted">
+                                {{ sd_stats.get(level, {}).get('reached_mean', 0) }}/{{ sd_stats.get(level, {}).get('total', 0) }} touches
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Limit Order Statistics -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-clock-history me-2"></i>Limit Order Performance
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="stat-value positive">{{ "%.1f"|format(limit_stats.get('fill_rate', 0)) }}%</div>
+                            <div class="stat-label">Fill Rate</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="stat-value">{{ limit_stats.get('total_orders', 0) }}</div>
+                            <div class="stat-label">Total Orders</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="stat-value">{{ "%.1f"|format(limit_stats.get('avg_time_seconds', 0) or 0) }}s</div>
+                            <div class="stat-label">Avg Fill Time</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="stat-value">{{ "%.0f"|format(limit_stats.get('avg_iterations', 0) or 0) }}</div>
+                            <div class="stat-label">Avg Iterations</div>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <span>Filled:</span>
+                    <span class="positive">{{ limit_stats.get('filled', 0) }}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Timeout:</span>
+                    <span class="neutral">{{ limit_stats.get('timeout', 0) }}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Errors:</span>
+                    <span class="negative">{{ limit_stats.get('errors', 0) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cost Estimator -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-calculator me-2"></i>Cost Estimator
+            </div>
+            <div class="card-body">
+                <form id="cost-form">
+                    <div class="mb-3">
+                        <label class="form-label">Lot Size</label>
+                        <input type="number" class="form-control" id="est-lot" value="0.1" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Spot Spread ($)</label>
+                        <input type="number" class="form-control" id="est-spot-spread" value="0.30" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Futures Spread ($)</label>
+                        <input type="number" class="form-control" id="est-futures-spread" value="0.50" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Commission/Lot ($)</label>
+                        <input type="number" class="form-control" id="est-commission" value="{{ config.commission_per_lot }}" step="0.1">
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Spread Cost (RT):</span>
+                        <span id="cost-spread">$0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Commission (RT):</span>
+                        <span id="cost-commission">$0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between fw-bold">
+                        <span>Total Cost:</span>
+                        <span id="cost-total" class="negative">$0.00</span>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Breakeven Calculator -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-arrows-expand me-2"></i>Breakeven Analysis
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Current Std Dev ($)</label>
+                    <input type="number" class="form-control" id="be-std" value="1.00" step="0.01">
+                </div>
+                <hr>
+                <p class="text-muted small">SD moves needed to cover costs:</p>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Breakeven SD:</span>
+                    <span id="be-sd" class="fw-bold">0.00σ</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Min Entry SD:</span>
+                    <span id="min-entry-sd" class="fw-bold">0.00σ</span>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">
+                        For profitable trades, enter at SD ≥ {{ config.entry_std_dev }}σ and exit near mean.
+                        With costs, actual profit starts at exit SD = 0 + breakeven.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SD Touch Log -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-check me-2"></i>SD Touch Log</span>
+                <div>
+                    <select class="form-select form-select-sm" id="sd-filter" style="width: auto; display: inline-block;">
+                        <option value="">All Levels</option>
+                        <option value="2.0σ">2.0σ</option>
+                        <option value="2.5σ">2.5σ</option>
+                        <option value="3.0σ">3.0σ</option>
+                        <option value="3.5σ">3.5σ</option>
+                        <option value="4.0σ">4.0σ</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>SD Level</th>
+                                <th>Direction</th>
+                                <th>Z-Score</th>
+                                <th>Spread</th>
+                                <th>Mean</th>
+                                <th>Reached Mean</th>
+                                <th>Profit Potential</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sd-touches-table">
+                            {% for touch in sd_touches %}
+                            <tr>
+                                <td>{{ touch.touch_date }}</td>
+                                <td>{{ touch.touch_time }}</td>
+                                <td><span class="badge bg-info">{{ touch.sd_level }}</span></td>
+                                <td>
+                                    <span class="badge {% if touch.direction == 'HIGH' %}bg-danger{% else %}bg-success{% endif %}">
+                                        {{ touch.direction }}
+                                    </span>
+                                </td>
+                                <td>{{ "%.2f"|format(touch.touch_zscore or 0) }}</td>
+                                <td>${{ "%.2f"|format(touch.touch_spread or 0) }}</td>
+                                <td>${{ "%.2f"|format(touch.mean_at_touch or 0) }}</td>
+                                <td>
+                                    {% if touch.reached_mean %}
+                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                    {% else %}
+                                    <i class="bi bi-x-circle-fill text-danger"></i>
+                                    {% endif %}
+                                </td>
+                                <td class="{% if (touch.potential_profit or 0) > 0 %}positive{% else %}negative{% endif %}">
+                                    ${{ "%.2f"|format(touch.potential_profit or 0) }}
+                                </td>
+                                <td>
+                                    <span class="badge {% if touch.status == 'COMPLETED' %}bg-success{% elif touch.status == 'PENDING' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                        {{ touch.status }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="10" class="text-center text-muted">No SD touches recorded</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Cost calculator
+    function updateCostEstimate() {
+        const lot = parseFloat(document.getElementById('est-lot').value) || 0;
+        const spotSpread = parseFloat(document.getElementById('est-spot-spread').value) || 0;
+        const futuresSpread = parseFloat(document.getElementById('est-futures-spread').value) || 0;
+        const commission = parseFloat(document.getElementById('est-commission').value) || 0;
+        const contractSize = {{ config.contract_size }};
+
+        // Round trip spread cost
+        const spreadCost = (spotSpread + futuresSpread) * lot * contractSize;
+        // Round trip commission (entry + exit)
+        const commissionCost = commission * lot * 4; // 2 legs * 2 (entry+exit)
+
+        const totalCost = spreadCost + commissionCost;
+
+        document.getElementById('cost-spread').textContent = '$' + spreadCost.toFixed(2);
+        document.getElementById('cost-commission').textContent = '$' + commissionCost.toFixed(2);
+        document.getElementById('cost-total').textContent = '$' + totalCost.toFixed(2);
+
+        // Update breakeven
+        const std = parseFloat(document.getElementById('be-std').value) || 1;
+        const beSD = totalCost / (lot * contractSize * std);
+        document.getElementById('be-sd').textContent = beSD.toFixed(2) + 'σ';
+        document.getElementById('min-entry-sd').textContent = (beSD + {{ config.exit_std_dev }}).toFixed(2) + 'σ';
+    }
+
+    // Attach listeners
+    ['est-lot', 'est-spot-spread', 'est-futures-spread', 'est-commission', 'be-std'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updateCostEstimate);
+    });
+
+    // Initial calculation
+    updateCostEstimate();
+
+    // SD filter
+    document.getElementById('sd-filter').addEventListener('change', async (e) => {
+        const level = e.target.value;
+        const url = level ? `/api/sd-touches?sd_level=${level}` : '/api/sd-touches';
+
+        const response = await fetch(url);
+        const touches = await response.json();
+
+        const tbody = document.getElementById('sd-touches-table');
+        tbody.innerHTML = touches.map(t => `
+            <tr>
+                <td>${t.touch_date || '-'}</td>
+                <td>${t.touch_time || '-'}</td>
+                <td><span class="badge bg-info">${t.sd_level}</span></td>
+                <td><span class="badge ${t.direction === 'HIGH' ? 'bg-danger' : 'bg-success'}">${t.direction}</span></td>
+                <td>${(t.touch_zscore || 0).toFixed(2)}</td>
+                <td>$${(t.touch_spread || 0).toFixed(2)}</td>
+                <td>$${(t.mean_at_touch || 0).toFixed(2)}</td>
+                <td>${t.reached_mean ? '<i class="bi bi-check-circle-fill text-success"></i>' : '<i class="bi bi-x-circle-fill text-danger"></i>'}</td>
+                <td class="${(t.potential_profit || 0) > 0 ? 'positive' : 'negative'}">$${(t.potential_profit || 0).toFixed(2)}</td>
+                <td><span class="badge ${t.status === 'COMPLETED' ? 'bg-success' : t.status === 'PENDING' ? 'bg-warning' : 'bg-secondary'}">${t.status}</span></td>
+            </tr>
+        `).join('') || '<tr><td colspan="10" class="text-center text-muted">No touches found</td></tr>';
+    });
+</script>
+{% endblock %}
