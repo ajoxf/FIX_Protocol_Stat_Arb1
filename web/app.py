@@ -497,6 +497,107 @@ def api_detect_mt5():
     })
 
 
+@app.route('/api/detect-mt5-accounts', methods=['POST'])
+def api_detect_mt5_accounts():
+    """Detect saved MT5 accounts for a given terminal path"""
+    import os
+    import hashlib
+    import configparser
+    import re
+
+    data = request.get_json()
+    mt5_path = data.get('mt5_path', '')
+
+    if not mt5_path or not os.path.isfile(mt5_path):
+        return jsonify({'success': False, 'error': 'Invalid MT5 path'})
+
+    found_servers = []
+    found_accounts = []
+
+    try:
+        # MT5 stores data in %APPDATA%\MetaQuotes\Terminal\<hash>\
+        # The hash is MD5 of the uppercase terminal path
+        terminal_path = os.path.dirname(mt5_path).upper()
+        path_hash = hashlib.md5(terminal_path.encode('utf-16-le')).hexdigest().upper()
+
+        appdata = os.environ.get('APPDATA', '')
+        data_dir = os.path.join(appdata, 'MetaQuotes', 'Terminal', path_hash)
+
+        if os.path.isdir(data_dir):
+            # Look for server list in config
+            config_dir = os.path.join(data_dir, 'config')
+
+            # Check for servers in the origin.txt or common config files
+            # Also check the 'servers' subdirectory in the main MT5 folder
+            servers_dir = os.path.join(os.path.dirname(mt5_path), 'config', 'servers')
+            if os.path.isdir(servers_dir):
+                for server_file in os.listdir(servers_dir):
+                    if server_file.endswith('.srv'):
+                        server_name = server_file[:-4]  # Remove .srv extension
+                        found_servers.append(server_name)
+
+            # Also check the history folder for server names
+            history_dir = os.path.join(data_dir, 'history')
+            if os.path.isdir(history_dir):
+                for item in os.listdir(history_dir):
+                    item_path = os.path.join(history_dir, item)
+                    if os.path.isdir(item_path) and item not in found_servers:
+                        # Server folders in history
+                        found_servers.append(item)
+
+            # Look for saved accounts in the accounts config
+            # Accounts are stored in accounts.dat (binary) but we can check lastlogin info
+            profiles_dir = os.path.join(data_dir, 'config')
+            if os.path.isdir(profiles_dir):
+                # Check for recent login info in ini files
+                for f in os.listdir(profiles_dir):
+                    if f.endswith('.ini'):
+                        try:
+                            ini_path = os.path.join(profiles_dir, f)
+                            with open(ini_path, 'r', encoding='utf-8', errors='ignore') as fp:
+                                content = fp.read()
+                                # Look for login patterns
+                                login_match = re.search(r'Login=(\d+)', content)
+                                server_match = re.search(r'Server=([^\r\n]+)', content)
+                                if login_match:
+                                    account_info = {
+                                        'account': login_match.group(1),
+                                        'server': server_match.group(1) if server_match else ''
+                                    }
+                                    if account_info not in found_accounts:
+                                        found_accounts.append(account_info)
+                        except Exception:
+                            pass
+
+            # Check common.ini for last used account
+            common_ini = os.path.join(data_dir, 'config', 'common.ini')
+            if os.path.isfile(common_ini):
+                try:
+                    with open(common_ini, 'r', encoding='utf-8', errors='ignore') as fp:
+                        content = fp.read()
+                        login_match = re.search(r'Login=(\d+)', content)
+                        server_match = re.search(r'Server=([^\r\n]+)', content)
+                        if login_match:
+                            account_info = {
+                                'account': login_match.group(1),
+                                'server': server_match.group(1) if server_match else ''
+                            }
+                            if account_info not in found_accounts:
+                                found_accounts.insert(0, account_info)  # Most recent first
+                except Exception:
+                    pass
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+    return jsonify({
+        'success': True,
+        'servers': sorted(set(found_servers)),
+        'accounts': found_accounts,
+        'data_dir': data_dir if 'data_dir' in dir() else None
+    })
+
+
 @app.route('/api/shutdown', methods=['POST'])
 def api_shutdown():
     """Shutdown the application gracefully"""
