@@ -175,7 +175,7 @@
         </div>
 
         <!-- Hurst Exponent -->
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-header">
                 <i class="bi bi-activity me-2"></i>Market Regime
             </div>
@@ -186,6 +186,35 @@
                     <span class="badge bg-secondary" id="regime-badge">Unknown</span>
                 </div>
                 <small class="text-muted">H < 0.5 = Mean Reverting</small>
+            </div>
+        </div>
+
+        <!-- AI Agent Monitor -->
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-robot me-2"></i>AI Agent Monitor
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted">System Health</span>
+                    <span class="badge" id="health-badge">Loading...</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted">Errors</span>
+                    <span class="badge bg-danger" id="error-count">0</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted">Warnings</span>
+                    <span class="badge bg-warning text-dark" id="warning-count">0</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted">Uptime</span>
+                    <span class="text-white" id="uptime">-</span>
+                </div>
+                <hr>
+                <div id="active-issues" class="small">
+                    <span class="text-muted">No active issues</span>
+                </div>
             </div>
         </div>
     </div>
@@ -218,6 +247,7 @@
                                 <th>Exit Z</th>
                                 <th>Net P&L</th>
                                 <th>Status</th>
+                                <th>AI</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -257,15 +287,136 @@
                                         {{ trade.status }}
                                     </span>
                                 </td>
+                                <td>
+                                    {% if trade.status == 'CLOSED' %}
+                                    <button class="btn btn-outline-info btn-sm" onclick="analyzeTrade('{{ trade.trade_id }}')" title="AI Analysis">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="11" class="text-center text-muted">No trades yet</td>
+                                <td colspan="12" class="text-center text-muted">No trades yet</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trade Analysis Modal -->
+<div class="modal fade" id="tradeAnalysisModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-robot me-2"></i>AI Trade Analysis</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="analysis-loading" class="text-center py-4">
+                    <div class="spinner-border text-info" role="status"></div>
+                    <p class="mt-2 text-muted">Analyzing trade...</p>
+                </div>
+                <div id="analysis-content" class="d-none">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="card bg-secondary">
+                                <div class="card-body">
+                                    <h6 class="card-title">Exit Reason</h6>
+                                    <span class="badge bg-info fs-6" id="analysis-exit-reason">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-secondary">
+                                <div class="card-body">
+                                    <h6 class="card-title">Entry Quality</h6>
+                                    <span id="analysis-entry-quality" class="fs-5">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-secondary">
+                                <div class="card-body">
+                                    <h6 class="card-title">Exit Quality</h6>
+                                    <span id="analysis-exit-quality" class="fs-5">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-secondary">
+                                <div class="card-body">
+                                    <h6 class="card-title">Risk Score</h6>
+                                    <div class="progress" style="height: 25px;">
+                                        <div class="progress-bar" id="analysis-risk-bar" role="progressbar" style="width: 50%;">5/10</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-secondary">
+                                <div class="card-body">
+                                    <h6 class="card-title">Hold Duration</h6>
+                                    <span id="analysis-duration" class="fs-5">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-secondary">
+                                <div class="card-body">
+                                    <h6 class="card-title">Efficiency</h6>
+                                    <span id="analysis-efficiency" class="fs-5">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="card bg-secondary">
+                                <div class="card-body">
+                                    <h6 class="card-title">Costs Breakdown</h6>
+                                    <div class="row">
+                                        <div class="col-4">
+                                            <small class="text-muted">Spread</small>
+                                            <div id="analysis-spread-cost">$0.00</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Commission</small>
+                                            <div id="analysis-commission">$0.00</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Slippage Est.</small>
+                                            <div id="analysis-slippage">$0.00</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-secondary">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="bi bi-exclamation-triangle me-1"></i>Root Causes</h6>
+                                    <ul id="analysis-root-causes" class="mb-0 ps-3"></ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-secondary">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="bi bi-lightbulb me-1"></i>Recommendations</h6>
+                                    <ul id="analysis-recommendations" class="mb-0 ps-3"></ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -527,5 +678,126 @@
                 updateTickData(data.market);
             }
         });
+
+    // ==================== AI Agent Monitor ====================
+
+    // Fetch and update system health
+    async function updateSystemHealth() {
+        try {
+            const response = await fetch('/api/system_health');
+            const data = await response.json();
+
+            if (data.success) {
+                const health = data.health;
+
+                // Update health badge
+                const healthBadge = document.getElementById('health-badge');
+                healthBadge.textContent = health.status;
+                healthBadge.className = 'badge';
+                if (health.status === 'Healthy') {
+                    healthBadge.classList.add('bg-success');
+                } else if (health.status === 'Warning') {
+                    healthBadge.classList.add('bg-warning', 'text-dark');
+                } else {
+                    healthBadge.classList.add('bg-danger');
+                }
+
+                // Update counts
+                document.getElementById('error-count').textContent = health.error_count;
+                document.getElementById('warning-count').textContent = health.warning_count;
+
+                // Update uptime
+                const uptimeSeconds = health.uptime_seconds;
+                const hours = Math.floor(uptimeSeconds / 3600);
+                const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+                document.getElementById('uptime').textContent = `${hours}h ${minutes}m`;
+
+                // Update active issues
+                const issuesEl = document.getElementById('active-issues');
+                if (health.active_issues && health.active_issues.length > 0) {
+                    issuesEl.innerHTML = health.active_issues.slice(0, 3).map(issue => `
+                        <div class="mb-1">
+                            <span class="badge ${issue.severity === 'ERROR' ? 'bg-danger' : 'bg-warning text-dark'}">${issue.category}</span>
+                            <small class="text-muted ms-1">${issue.message.substring(0, 50)}...</small>
+                        </div>
+                    `).join('');
+                } else {
+                    issuesEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>No active issues</span>';
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch system health:', error);
+        }
+    }
+
+    // Fetch system health initially and every 30 seconds
+    updateSystemHealth();
+    setInterval(updateSystemHealth, 30000);
+
+    // ==================== Trade Analysis ====================
+
+    async function analyzeTrade(tradeId) {
+        const modal = new bootstrap.Modal(document.getElementById('tradeAnalysisModal'));
+        modal.show();
+
+        // Show loading, hide content
+        document.getElementById('analysis-loading').classList.remove('d-none');
+        document.getElementById('analysis-content').classList.add('d-none');
+
+        try {
+            const response = await fetch(`/api/analyze_trade/${tradeId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                const analysis = data.analysis;
+
+                // Populate modal
+                document.getElementById('analysis-exit-reason').textContent = analysis.exit_reason;
+                document.getElementById('analysis-entry-quality').textContent = analysis.entry_quality;
+                document.getElementById('analysis-exit-quality').textContent = analysis.exit_quality;
+
+                // Risk score bar
+                const riskBar = document.getElementById('analysis-risk-bar');
+                const riskScore = analysis.risk_score;
+                riskBar.style.width = `${riskScore * 10}%`;
+                riskBar.textContent = `${riskScore}/10`;
+                riskBar.className = 'progress-bar';
+                if (riskScore >= 7) {
+                    riskBar.classList.add('bg-danger');
+                } else if (riskScore >= 4) {
+                    riskBar.classList.add('bg-warning');
+                } else {
+                    riskBar.classList.add('bg-success');
+                }
+
+                // Duration and efficiency
+                document.getElementById('analysis-duration').textContent = analysis.hold_duration_str || '-';
+                document.getElementById('analysis-efficiency').textContent = `${analysis.efficiency.toFixed(1)}%`;
+
+                // Costs
+                document.getElementById('analysis-spread-cost').textContent = `$${analysis.spread_cost.toFixed(2)}`;
+                document.getElementById('analysis-commission').textContent = `$${analysis.commission_cost.toFixed(2)}`;
+                document.getElementById('analysis-slippage').textContent = `$${analysis.slippage_estimate.toFixed(2)}`;
+
+                // Root causes
+                const causesEl = document.getElementById('analysis-root-causes');
+                causesEl.innerHTML = analysis.root_causes.map(c => `<li>${c}</li>`).join('');
+
+                // Recommendations
+                const recsEl = document.getElementById('analysis-recommendations');
+                recsEl.innerHTML = analysis.recommendations.map(r => `<li>${r}</li>`).join('');
+
+                // Show content, hide loading
+                document.getElementById('analysis-loading').classList.add('d-none');
+                document.getElementById('analysis-content').classList.remove('d-none');
+            } else {
+                alert('Failed to analyze trade: ' + data.error);
+                modal.hide();
+            }
+        } catch (error) {
+            alert('Error analyzing trade: ' + error.message);
+            modal.hide();
+        }
+    }
 </script>
 {% endblock %}
