@@ -27,8 +27,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from database.manager import DatabaseManager
 from database.models import TradingConfig, Broker, Trade
 from core.trading_engine import TradingEngine, EngineState
+from ai import TradeAnalyzer, LogMonitor
+from ai.log_monitor import get_monitor
 
 logger = logging.getLogger(__name__)
+
+# Initialize AI components
+trade_analyzer = TradeAnalyzer()
+log_monitor = get_monitor()
 
 # Flask app
 app = Flask(__name__)
@@ -923,6 +929,75 @@ def api_shutdown():
     shutdown_thread.start()
 
     return jsonify({'success': True, 'message': 'Shutting down...'})
+
+
+# ==================== AI Analysis API ====================
+
+@app.route('/api/analyze_trade/<trade_id>')
+def api_analyze_trade(trade_id):
+    """Analyze a trade using AI Trade Analyzer"""
+    database = get_db()
+
+    # Get the trade
+    trades = database.get_trades(limit=1000)
+    trade = None
+    for t in trades:
+        if t.trade_id == trade_id:
+            trade = t
+            break
+
+    if not trade:
+        return jsonify({'success': False, 'error': 'Trade not found'})
+
+    # Get config for analyzer
+    config = database.get_config()
+    analyzer = TradeAnalyzer(config.to_dict() if config else {})
+
+    # Analyze the trade
+    analysis = analyzer.analyze_trade(trade.to_dict())
+
+    return jsonify({
+        'success': True,
+        'analysis': analysis.to_dict()
+    })
+
+
+@app.route('/api/logs')
+def api_logs():
+    """Get log analysis with AI insights"""
+    level = request.args.get('level')
+    limit = int(request.args.get('limit', 100))
+
+    # Get recent logs
+    logs = log_monitor.get_recent_logs(level=level, limit=limit)
+
+    # Get health status
+    health = log_monitor.get_health()
+
+    # Get active issues
+    issues = log_monitor.get_issues()
+
+    # Get statistics
+    stats = log_monitor.get_statistics()
+
+    return jsonify({
+        'success': True,
+        'logs': logs,
+        'health': health.to_dict(),
+        'issues': issues,
+        'statistics': stats
+    })
+
+
+@app.route('/api/system_health')
+def api_system_health():
+    """Get current system health status"""
+    health = log_monitor.get_health()
+
+    return jsonify({
+        'success': True,
+        'health': health.to_dict()
+    })
 
 
 # ==================== SocketIO Events ====================

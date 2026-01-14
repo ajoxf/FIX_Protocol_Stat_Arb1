@@ -165,6 +165,7 @@ class Trade:
     # Status
     order_status: Optional[str] = None
     status: str = "OPEN"  # 'OPEN' or 'CLOSED'
+    close_reason: Optional[str] = None  # 'CLOSE', 'STOP_LOSS', 'MAX_LOSS', 'OVERNIGHT', 'TIME_STOP', 'MANUAL'
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -194,7 +195,8 @@ class Trade:
             'futures_broker_id': self.futures_broker_id,
             'mt5_futures_ticket': self.mt5_futures_ticket,
             'order_status': self.order_status,
-            'status': self.status
+            'status': self.status,
+            'close_reason': self.close_reason
         }
 
 
