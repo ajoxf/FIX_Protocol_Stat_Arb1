@@ -209,7 +209,7 @@
                 </div>
                 <div class="d-flex justify-content-between align-items-center">
                     <span class="text-muted">Uptime</span>
-                    <span class="text-white" id="uptime">-</span>
+                    <span id="uptime">-</span>
                 </div>
                 <hr>
                 <div id="active-issues" class="small">
@@ -313,44 +313,44 @@
 <!-- Trade Analysis Modal -->
 <div class="modal fade" id="tradeAnalysisModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content bg-dark">
-            <div class="modal-header border-secondary">
+        <div class="modal-content">
+            <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-robot me-2"></i>AI Trade Analysis</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div id="analysis-loading" class="text-center py-4">
-                    <div class="spinner-border text-info" role="status"></div>
+                    <div class="spinner-border text-primary" role="status"></div>
                     <p class="mt-2 text-muted">Analyzing trade...</p>
                 </div>
                 <div id="analysis-content" class="d-none">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <div class="card bg-secondary">
+                            <div class="card">
                                 <div class="card-body">
                                     <h6 class="card-title">Exit Reason</h6>
-                                    <span class="badge bg-info fs-6" id="analysis-exit-reason">-</span>
+                                    <span class="badge bg-primary fs-6" id="analysis-exit-reason">-</span>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card bg-secondary">
+                            <div class="card">
                                 <div class="card-body">
                                     <h6 class="card-title">Entry Quality</h6>
-                                    <span id="analysis-entry-quality" class="fs-5">-</span>
+                                    <span id="analysis-entry-quality" class="fs-5 fw-bold">-</span>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card bg-secondary">
+                            <div class="card">
                                 <div class="card-body">
                                     <h6 class="card-title">Exit Quality</h6>
-                                    <span id="analysis-exit-quality" class="fs-5">-</span>
+                                    <span id="analysis-exit-quality" class="fs-5 fw-bold">-</span>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="card bg-secondary">
+                            <div class="card">
                                 <div class="card-body">
                                     <h6 class="card-title">Risk Score</h6>
                                     <div class="progress" style="height: 25px;">
@@ -360,44 +360,44 @@
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="card bg-secondary">
+                            <div class="card">
                                 <div class="card-body">
                                     <h6 class="card-title">Hold Duration</h6>
-                                    <span id="analysis-duration" class="fs-5">-</span>
+                                    <span id="analysis-duration" class="fs-5 fw-bold">-</span>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="card bg-secondary">
+                            <div class="card">
                                 <div class="card-body">
                                     <h6 class="card-title">Efficiency</h6>
-                                    <span id="analysis-efficiency" class="fs-5">-</span>
+                                    <span id="analysis-efficiency" class="fs-5 fw-bold">-</span>
                                 </div>
                             </div>
                         </div>
                         <div class="col-12">
-                            <div class="card bg-secondary">
+                            <div class="card">
                                 <div class="card-body">
                                     <h6 class="card-title">Costs Breakdown</h6>
                                     <div class="row">
                                         <div class="col-4">
                                             <small class="text-muted">Spread</small>
-                                            <div id="analysis-spread-cost">$0.00</div>
+                                            <div class="fw-bold" id="analysis-spread-cost">$0.00</div>
                                         </div>
                                         <div class="col-4">
                                             <small class="text-muted">Commission</small>
-                                            <div id="analysis-commission">$0.00</div>
+                                            <div class="fw-bold" id="analysis-commission">$0.00</div>
                                         </div>
                                         <div class="col-4">
                                             <small class="text-muted">Slippage Est.</small>
-                                            <div id="analysis-slippage">$0.00</div>
+                                            <div class="fw-bold" id="analysis-slippage">$0.00</div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="card bg-secondary">
+                            <div class="card">
                                 <div class="card-body">
                                     <h6 class="card-title"><i class="bi bi-exclamation-triangle me-1"></i>Root Causes</h6>
                                     <ul id="analysis-root-causes" class="mb-0 ps-3"></ul>
@@ -405,7 +405,7 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="card bg-secondary">
+                            <div class="card">
                                 <div class="card-body">
                                     <h6 class="card-title"><i class="bi bi-lightbulb me-1"></i>Recommendations</h6>
                                     <ul id="analysis-recommendations" class="mb-0 ps-3"></ul>
@@ -415,7 +415,7 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-footer border-secondary">
+            <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>

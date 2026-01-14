@@ -12,15 +12,15 @@
 
     <style>
         :root {
-            --bs-body-bg: #0a0a0a;
-            --bs-body-color: #ffffff;
-            --card-bg: #141414;
-            --card-border: #2a2a2a;
-            --accent-color: #ffffff;
+            --bs-body-bg: #ffffff;
+            --bs-body-color: #1a1a1a;
+            --card-bg: #f8f9fa;
+            --card-border: #dee2e6;
+            --accent-color: #1a1a1a;
             --positive-color: #00c853;
             --negative-color: #ff1744;
-            --neutral-color: #9e9e9e;
-            --muted-color: #666666;
+            --neutral-color: #6c757d;
+            --muted-color: #adb5bd;
         }
 
         body {
@@ -30,21 +30,21 @@
         }
 
         .navbar {
-            background-color: var(--card-bg) !important;
+            background-color: var(--bs-body-color) !important;
             border-bottom: 1px solid var(--card-border);
         }
 
         .navbar-brand {
             font-weight: 600;
-            color: var(--bs-body-color) !important;
+            color: #ffffff !important;
         }
 
         .nav-link {
-            color: var(--neutral-color) !important;
+            color: rgba(255,255,255,0.7) !important;
         }
 
         .nav-link:hover, .nav-link.active {
-            color: var(--bs-body-color) !important;
+            color: #ffffff !important;
         }
 
         .card {
@@ -73,7 +73,7 @@
 
         .stat-label {
             font-size: 0.875rem;
-            color: var(--muted-color);
+            color: var(--neutral-color);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -85,19 +85,19 @@
         .btn-primary {
             background-color: var(--bs-body-color);
             border-color: var(--bs-body-color);
-            color: var(--bs-body-bg);
+            color: #ffffff;
         }
 
         .btn-primary:hover {
-            background-color: var(--neutral-color);
-            border-color: var(--neutral-color);
-            color: var(--bs-body-bg);
+            background-color: #333333;
+            border-color: #333333;
+            color: #ffffff;
         }
 
         .btn-success {
             background-color: var(--positive-color);
             border-color: var(--positive-color);
-            color: var(--bs-body-bg);
+            color: #ffffff;
         }
 
         .btn-success:hover {
@@ -117,7 +117,7 @@
 
         .btn-outline-success:hover {
             background-color: var(--positive-color);
-            color: var(--bs-body-bg);
+            color: #ffffff;
         }
 
         .btn-outline-danger {
@@ -127,7 +127,7 @@
 
         .btn-outline-danger:hover {
             background-color: var(--negative-color);
-            color: var(--bs-body-color);
+            color: #ffffff;
         }
 
         .btn-outline-secondary {
@@ -137,25 +137,25 @@
 
         .btn-outline-info {
             color: var(--bs-body-color);
-            border-color: var(--muted-color);
+            border-color: var(--card-border);
         }
 
         .btn-outline-info:hover {
-            background-color: var(--muted-color);
+            background-color: var(--card-border);
             color: var(--bs-body-color);
         }
 
         .form-control, .form-select {
-            background-color: #1a1a1a;
+            background-color: #ffffff;
             border-color: var(--card-border);
             color: var(--bs-body-color);
         }
 
         .form-control:focus, .form-select:focus {
-            background-color: #1a1a1a;
+            background-color: #ffffff;
             border-color: var(--bs-body-color);
             color: var(--bs-body-color);
-            box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 0.25rem rgba(0, 0, 0, 0.1);
         }
 
         .form-control::placeholder {
@@ -174,25 +174,31 @@
         .table-dark {
             --bs-table-bg: var(--card-bg);
             --bs-table-border-color: var(--card-border);
+            --bs-table-color: var(--bs-body-color);
         }
 
         .table-dark th {
-            color: var(--muted-color);
+            color: var(--neutral-color);
             font-weight: 500;
             text-transform: uppercase;
             font-size: 0.75rem;
             letter-spacing: 0.5px;
         }
 
-        .badge-connected { background-color: var(--positive-color) !important; color: #000 !important; }
+        .table-dark td {
+            color: var(--bs-body-color);
+        }
+
+        .badge-connected { background-color: var(--positive-color) !important; color: #fff !important; }
         .badge-disconnected { background-color: var(--muted-color) !important; }
         .badge-error { background-color: var(--negative-color) !important; }
 
-        .badge.bg-info { background-color: var(--muted-color) !important; }
-        .badge.bg-primary { background-color: var(--bs-body-color) !important; color: #000 !important; }
+        .badge.bg-info { background-color: var(--neutral-color) !important; }
+        .badge.bg-primary { background-color: var(--bs-body-color) !important; color: #fff !important; }
         .badge.bg-warning { background-color: #ff9800 !important; color: #000 !important; }
-        .badge.bg-success { background-color: var(--positive-color) !important; color: #000 !important; }
+        .badge.bg-success { background-color: var(--positive-color) !important; color: #fff !important; }
         .badge.bg-danger { background-color: var(--negative-color) !important; }
+        .badge.bg-secondary { background-color: var(--neutral-color) !important; }
 
         .zscore-display {
             font-size: 3rem;
@@ -228,17 +234,22 @@
 
         .chart-container {
             height: 300px;
-            background-color: #1a1a1a;
+            background-color: #f8f9fa;
             border-radius: 8px;
+            border: 1px solid var(--card-border);
         }
 
         .text-muted {
-            color: var(--muted-color) !important;
+            color: var(--neutral-color) !important;
+        }
+
+        .text-white {
+            color: var(--bs-body-color) !important;
         }
 
         code {
             color: var(--positive-color);
-            background-color: #1a1a1a;
+            background-color: #e9ecef;
             padding: 2px 6px;
             border-radius: 4px;
         }
@@ -263,7 +274,7 @@
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--muted-color);
+            background: var(--neutral-color);
         }
 
         /* Custom profit/loss styling */
@@ -271,8 +282,38 @@
         .loss { color: var(--negative-color) !important; }
 
         /* Trade direction badges */
-        .badge-buy { background-color: var(--positive-color) !important; color: #000 !important; }
+        .badge-buy { background-color: var(--positive-color) !important; color: #fff !important; }
         .badge-sell { background-color: var(--negative-color) !important; color: #fff !important; }
+
+        /* Dark card override for specific elements */
+        .card.bg-dark, .card.bg-secondary {
+            background-color: #e9ecef !important;
+            color: var(--bs-body-color);
+        }
+
+        .bg-dark {
+            background-color: #e9ecef !important;
+            color: var(--bs-body-color) !important;
+        }
+
+        .bg-secondary {
+            background-color: #f1f3f5 !important;
+        }
+
+        /* Modal styling */
+        .modal-content.bg-dark {
+            background-color: #ffffff !important;
+            color: var(--bs-body-color);
+        }
+
+        .btn-close-white {
+            filter: none;
+        }
+
+        /* Navbar text */
+        #status-text {
+            color: #ffffff;
+        }
     </style>
 
     {% block extra_css %}{% endblock %}
